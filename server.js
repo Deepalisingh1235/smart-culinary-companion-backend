@@ -10,6 +10,8 @@ import AuthRoutes from './Routes/AuthRoutes.js';
 import mealPlanRoutes from './Routes/mealPlanRoutes.js';
 import AirecipeRoutes from './Routes/Aireciperoutes.js';
 
+
+
 // MongoDB connection
 import connectDB from './config/mongodb.js';
 dotenv.config();
@@ -40,6 +42,7 @@ app.use('/auth', AuthRoutes);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/mealplanner', mealPlanRoutes);
 app.use('/api/generated', AirecipeRoutes); 
+
 
 // Root check route
 app.get('/', (req, res) => {

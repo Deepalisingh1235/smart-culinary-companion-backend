@@ -62,7 +62,18 @@ const recipes = [
     title: "Paneer Lettuce Wraps",
     description: "Spiced paneer wrapped in crunchy lettuce leaves.",
     imageUrl: "/images/paneer-lettuce-wraps-low-carb.jpg"
-  }
+  },
+  {
+  title: "Grilled Tandoori Chicken Skewers",
+  description: "Lean chicken marinated in tandoori spices, grilled to perfection for a high-protein meal.",
+  imageUrl: "/images/grilled-tandoori-chicken-skewers.jpg"
+},
+{
+  title: "Chia Yogurt Parfait",
+  description: "Layered Greek yogurt with chia seeds, berries, and nuts — a nutritious and fiber-rich breakfast.",
+  imageUrl: "/images/chia-yogurt-parfait.jpg"
+}
+
 ];
 
 async function insertRecipes() {

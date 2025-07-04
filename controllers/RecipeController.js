@@ -1,3 +1,4 @@
+
 import Recipe from '../models/RecipeModel.js';
 import User from '../models/user.js';
 import genAI from '../utils/gemini.js';
@@ -15,7 +16,7 @@ export const smartRecipeFlow = async (req, res) => {
       nutritionPref = [],
       allergies = [],
       servingSize,
-      additionalNotes
+      additionalNotes,
     } = req.body;
 
     const cuisineStr = Array.isArray(cuisine) ? cuisine.join(', ') : (cuisine?.trim?.() || '');
@@ -25,97 +26,111 @@ export const smartRecipeFlow = async (req, res) => {
 
     const model = genAI.getGenerativeModel({ model: 'models/gemini-2.5-flash' });
 
-    const filtersPromptParts = [];
-
-    if (query?.trim()) filtersPromptParts.push(`Query: "${query.trim()}"`);
-    if (cuisineStr) filtersPromptParts.push(`Cuisine: ${cuisineStr}`);
-    if (dietStr) filtersPromptParts.push(`Diet: ${dietStr}`);
-    if (nutritionPrefStr) filtersPromptParts.push(`Nutrition Preferences: ${nutritionPrefStr}`);
-    if (allergyStr) filtersPromptParts.push(`Allergies: ${allergyStr}`);
-    if (cookTime?.trim()) filtersPromptParts.push(`Cook Time: ${cookTime.trim()}`);
-    if (servingSize?.toString().trim()) filtersPromptParts.push(`Serving Size: ${servingSize.toString().trim()}`);
-    if (additionalNotes?.trim()) filtersPromptParts.push(`Notes: ${additionalNotes.trim()}`);
-
-    const filtersPrompt = filtersPromptParts.length > 0
-      ? filtersPromptParts.join('\n')
-      : 'No specific filters or ingredients provided.';
-
     if (step === 'titles') {
-      if (!query?.trim()) {
-        return res.status(400).json({ success: false, message: 'Query is required for titles' });
-      }
+  if (!query?.trim()) {
+    return res.status(400).json({ success: false, message: 'Query is required for titles' });
+  }
 
       const prompt = `
-You are an AI chef.
-Based on the following user input, suggest 3–4 relevant, easy-to-medium recipe titles. 
-Avoid very modern or complex dishes. Titles should be clear, traditional, and user-friendly.
+🎯 Task: Suggest 2–4 beginner-friendly dish titles based on user's query and filters.
 
-${filtersPrompt}
+👤 User Input:
+• Query (dish idea or ingredients): "${query.trim()}"
+${cuisineStr ? `• Cuisine: ${cuisineStr}` : ''}
+${dietStr ? `• Diet: ${dietStr}` : ''}
+${cookTime ? `• Cook Time: ${cookTime}` : ''}
+${servingSize ? `• Serving Size: ${servingSize}` : ''}
+${additionalNotes ? `• Notes: ${additionalNotes}` : ''}
 
-Respond ONLY with a valid JSON array of strings:
-["Title 1", "Title 2", "Title 3"]
+ Guidelines:
+- Suggest only recipe **titles**
+- Do NOT include ingredients or explanation
+- Respect all filters and allergies
+- Use familiar, practical, beginner-friendly names
+- Avoid exotic, complex, or allergy-conflicting dishes
+
+📦 Output (JSON only):
+{
+  "titles": ["Dish Name 1", "Dish Name 2", "Dish Name 3", "Dish Name 4"]
+}
       `.trim();
 
-      const result = await model.generateContent(prompt);
-      const text = await result.response.text();
-      const match = text.match(/\[[\s\S]*\]/);
-      if (!match) throw new Error('No valid recipe titles found.');
+      
+  const result = await model.generateContent(prompt);
+  const text = await result.response.text();
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No valid JSON object found in response');
 
-      const titles = JSON.parse(match[0].replace(/[“”]/g, '"'));
-      return res.status(200).json({ success: true, titles });
-    }
+  const cleanedJson = match[0]
+    .replace(/[“”]/g, '"')
+    .replace(/,\s*([\]}])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .replace(/\\n/g, ' ')
+    .replace(/“|”/g, '"');
 
+  const parsed = JSON.parse(cleanedJson);
+
+  return res.status(200).json({
+    success: true,
+    titles: parsed.titles || [],
+  });
+}
+
+    // === Step 2: Generate FULL RECIPE ===
     if (step === 'fullRecipe') {
       if (!title || !query) {
         return res.status(400).json({ success: false, message: 'Title and query are required' });
       }
 
-      const prompt = `  
-You are an AI chef.
+      const prompt = `
+You are an expert AI chef.
 
-ONLY respond with a valid JSON object. No markdown, no explanation, no formatting. No "Here is your recipe", just pure JSON.
+🎯 Your task:
+Generate a detailed recipe in valid JSON format ONLY (no markdown, no explanation).
 
-The recipe should be:
-- Simple and traditional — avoid overly modern or exotic styles.
-- Use ingredients and steps that are easy to understand for everyday users.
-- For difficult or rare words (like spices, uncommon ingredients, cooking terms), provide a simple Hindi explanation in brackets.
-  Do NOT translate or explain common everyday words like salt, sugar, water, etc.
+The recipe must:
+- Match the given title, query, and dietary filters.
+- Use simple ingredients that respect allergies.
+- Be beginner-friendly with easy cooking steps.
+- Include serving tips, chef advice, and health data.
+- Use simple Hindi brackets for rare terms (e.g. "asafoetida (हींग)").
 
-Include these fields in the JSON:
-- title (string)
-- description (string)
-- cookTime (string)
-- servingSize (string)
-- ingredients: array of strings like "1 cup chopped onions"
-- steps: array of strings like "Step 1: Do this..."
-- healthInfo: calories, protein, fat, carbs, dietary[] (all strings)
-- imageUrl (string)
-- chefTip, servingTip, additionalInfo (all strings)
-
-User Request: "${query}"
-Title: ${title}
-Cuisine: ${cuisine || 'Not specified'}
-Cook Time: ${cookTime || 'Not specified'}
-Diet: ${
-  diet.includes('Vegetarian')
-    ? 'Strict vegetarian (no meat, fish, or eggs)'
-    : diet.includes('Eggetarian')
-    ? 'Eggetarian (vegetarian with eggs, no meat or fish)'
-    : diet.includes('Non-Veg')
-    ? 'Non-vegetarian (meat, fish, eggs allowed)'
-    : (diet.length > 0 ? diet.join(', ') : 'None')
+📦 Output structure:
+{
+  "title": "",
+  "description": "",
+  "cookTime": "",
+  "servingSize": "",
+  "ingredients": [ "..." ],
+  "steps": [ "..." ],
+  "healthInfo": {
+    "calories": "",
+    "protein": "",
+    "fat": "",
+    "carbs": "",
+    "dietary": [ "Vegetarian", "Gluten-Free" ]
+  },
+  "chefTip": "",
+  "servingTip": "",
+  "additionalInfo": "",
+  "imageUrl": "..."
 }
-Nutrition Preferences: ${nutritionPref.length > 0 ? nutritionPref.join(', ') : 'None'}
-Allergies: ${allergies.length > 0 ? allergies.join(', ') : 'None'}
-Serving Size: ${servingSize}
-Notes: ${additionalNotes || 'None'}
 
-Generate a clear, helpful, easy-to-follow recipe accordingly.
+👤 User Input:
+- Query: "${query}"
+- Title: ${title}
+- Cuisine: ${cuisineStr || 'Not specified'}
+- Cook Time: ${cookTime || 'Not specified'}
+- Diet: ${dietStr || 'None'}
+- Nutrition Preferences: ${nutritionPrefStr || 'None'}
+- Allergies: ${allergyStr || 'None'}
+- Serving Size: ${servingSize || 'Not specified'}
+- Notes: ${additionalNotes || 'None'}
 
-Respond ONLY with valid JSON. Do not wrap in markdown or code block.
+Return ONLY valid JSON.
       `.trim();
-
-      const result = await model.generateContent(prompt);
+      
+const result = await model.generateContent(prompt);
       const text = await result.response.text();
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -132,7 +147,6 @@ Respond ONLY with valid JSON. Do not wrap in markdown or code block.
         recipeData.healthInfo.dietary = [...new Set([...diet, ...nutritionPref])] || ['General'];
       }
 
-      
       if (Array.isArray(recipeData.ingredients)) {
         recipeData.ingredients = recipeData.ingredients
           .map((i) => {
@@ -160,7 +174,6 @@ Respond ONLY with valid JSON. Do not wrap in markdown or code block.
         }
       }
 
-     
       if (Array.isArray(recipeData.steps)) {
         recipeData.steps = recipeData.steps
           .map((stepObj, idx) => {
@@ -190,10 +203,11 @@ Respond ONLY with valid JSON. Do not wrap in markdown or code block.
 
     return res.status(400).json({ success: false, message: 'Invalid step provided' });
   } catch (err) {
-    console.error(' smartRecipeFlow error:', err.message);
+    console.error('❌ smartRecipeFlow error:', err.message);
     res.status(500).json({ success: false, message: 'Something went wrong.', error: err.message });
   }
 };
+
 
 export const toggleSaveRecipe = async (req, res) => {
   try {
@@ -290,7 +304,3 @@ export const deleteRecipe = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error while deleting recipe' });
   }
 };
-
-
-
-

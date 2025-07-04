@@ -38,6 +38,12 @@ ${dietType ? `- Diet Type: ${dietType}` : ''}
 ${allergies ? `- Allergies: ${allergies}` : ''}
 ${healthIssues ? `- Health Issues: ${healthIssues}` : ''}
 
+
+# IMPORTANT:
+# If optional fields like Age, Gender, Activity Level, Diet Type, Allergies, or Health Issues are provided, 
+# consider them carefully while generating the meal plan.
+# If they are not provided, do not assume or fill default values for them.
+
 Each day must include:
 - Breakfast
 - Lunch
@@ -154,6 +160,9 @@ Only return valid JSON array.
     res.status(500).json({ success: false, message: 'Server error while generating meal plan.' });
   }
 });
+
+
+
 
 export const toggleSaveMealPlan = asyncHandler(async (req, res) => {
   const { id } = req.body;

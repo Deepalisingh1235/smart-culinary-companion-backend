@@ -2,11 +2,13 @@ import mongoose from 'mongoose';
 
 const MealPlanSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+
   goal: { type: String, required: true },
   weight: { type: Number, required: true },
   height: { type: Number, required: true },
-  duration: { type: Number, required: true },  
-  startDate: { type: Date, required: true },
+  duration: { type: Number, required: true },
+  startDate: { type: Date, required: true }, // ✅ Added start date
+
   age: { type: Number },
   gender: { type: String },
   activity: { type: String },
@@ -14,8 +16,10 @@ const MealPlanSchema = new mongoose.Schema({
   allergies: { type: String },
   healthIssues: { type: String },
 
-  plan: { type: Array, required: true },         
-  nutritionTips: { type: Array, default: [] },    
+  
+
+  plan: { type: Array, required: true },
+  nutritionTips: { type: Array, default: [] },
 
   savedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
