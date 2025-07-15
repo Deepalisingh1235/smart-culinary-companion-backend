@@ -21,14 +21,30 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Enable CORS
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://smart-culinary-companion-frontend-4.onrender.com'
+];
+
 app.use(cors({
-  origin: [
-  'http://localhost:5173', // For local development
-    'https://smart-culinary-companion-frontend-4.onrender.com' // For production
-  ],
-  
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
   credentials: true,
 }));
+
+// Handle preflight OPTIONS requests
+app.options('*', cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
+  
+  
 
 // Middleware
 app.use(express.json());
